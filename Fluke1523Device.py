@@ -17,8 +17,8 @@ class Fluke1523:
     """ this class is representing a Fluke1523 device """
 
     # constants for Fluke1523 device
-    BAUDRATE = 19200                # DEFAULT BAUDRATE
-    TIMEOUT = 0.5                   # time out in seconds
+    BAUDRATE = 9600                # DEFAULT BAUDRATE
+    TIMEOUT = 0.5                  # time out in seconds
     
     COMMAND_LIST = {
         "readTemperature" : b'FETC?\r\n'
