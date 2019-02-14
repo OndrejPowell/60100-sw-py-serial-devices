@@ -8,69 +8,113 @@
 ###########################################
 
 #import modules
-from time import sleep
-from serial import Serial, SerialException, SerialTimeoutException
+import struct
+from pymodbus.pdu import ModbusRequest
+from pymodbus.client.sync import ModbusSerialClient as ModbusClient
+from pymodbus.transaction import ModbusRtuFramer
 
 
-class Thermotron:
+class G3Device:
 
-    """ this class is representing a Thermotron device """
+    """ this class is representing a G3Device device """
 
-    # constants for Thermotron device
-    BAUDRATE = 19200                # DEFAULT BAUDRATE
-    TIMEOUT = 0.5                   # time out in seconds
+    # constants for G3Device device
+    INVALID_TEMP = -999
+    INVALID_TEMP_DEFAULT_CHAR = '-'
+    RAW_TEMP_DIVIDE_BY = 100
     
     COMMAND_LIST = {
-        "readSetPoint1": b'setp1?\r\n',
-        "readSetPoint2": b'setp2?\r\n'
+        # Populated with starting address of each section, and for the last four additional information for how many register it would read(18 ch and 9 ch respectively)
+        "readTempRegister": 97,
+        "readPwrRegister": 151,
+        "readIntgARegister": 205,
+        "readIntgBRegister": 223,
+        "readIntgABRegister": 241,
+        "readRawTempRegister": 259,
+        "readCalibrationOffsetRegister": 295,
+        "readGeneralParametersRegister": [4,4],
+        "readBritespotSnRegister": [67,12,6],
+        "readBritespotFwRegister": [313,6,3],
+        "readBritespotHwRegister": [319,6,3]
     }
 
 
 
-    def __init__(self, com):         # start with the constru contructor is used for initializing variables ONLY ONE CONSTRUCTOR PER CLASS !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    def __init__(self, com, slaveid, channels):         # start with the constru contructor is used for initializing variables ONLY ONE CONSTRUCTOR PER CLASS !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.client = ModbusClient(method = "rtu", port = com)
         self.connection = None
-        self.comPort = com 
-    
+        self.slaveId = slaveid
+        self.channels = channels
 
     def openConnection(self):      # every method OF CLASS MUST HAVE self AS FIRST PARAMETER !!!!!!!!!!!!!!!!!
         """this opens up com port with device"""
-        try:
-            self.connection = Serial(port=self.comPort, baudrate=Thermotron.BAUDRATE, timeout=Thermotron.TIMEOUT )    #open com port
-        except SerialException:
-            print("Com port cannot open")
+        self.connection = self.client.connect()
+        if self.connection is False:
+            print("Error connecting to the unit, exiting the program")
+            exit(1)
         
 
     def closeConnection(self):
         """this closes connection with device"""
-        if self.connection != None:
-            if self.connection.isOpen():  # this is a getter, there is a variab le is_open .... 
-                self.connection.close()
+        if self.connection:
+            self.client.close()
 
+    
 
-    def readData(self, command, size=50):
-        """reads data from Thermatron"""
-        self.writeData( command )
-        data_read = self.connection.read(size)
-        return data_read.decode('utf-8')        # returns decoded data
-        
-
-
-    def writeData(self, command):
-        """ writes command to Thermatron"""
-        if command not in Thermotron.COMMAND_LIST:
+    def readData(self, command ):
+        "Reads register from starting address (parameter), num of reg to read and slave id "
+        if command not in G3Device.COMMAND_LIST:
             print("WRONG COMMAND PLEASE REFER TO COMMAND LIST: ")
             self.printDictionary()
-            return
-        try:
-            self.connection.write( Thermotron.COMMAND_LIST[command] )
-        except SerialTimeoutException:
-            print("COULD NOT READ THE DATA")
-        except SerialException:
-            print("DEVICE DISCONNECTED")
+            return None
+        if isinstance( G3Device.COMMAND_LIST[command], int):
+            response = self.client.read_input_registers( G3Device.COMMAND_LIST[command], self.channels, unit = self.slaveId)
+        elif len( G3Device.COMMAND_LIST[command] ) == 2:
+            response = self.client.read_input_registers( G3Device.COMMAND_LIST[command][0], G3Device.COMMAND_LIST[command][1], unit = self.slaveId)
+        else:
+            response = self.client.read_input_registers( G3Device.COMMAND_LIST[command][0], count = G3Device.COMMAND_LIST[command][1] if self.channels == 18 else G3Device.COMMAND_LIST[command][2], unit = self.slaveId)
+        return response.registers
+
+    
+    def dashUnvalidTemperatures( self, tempReg, rawTempReg):
+        for x in range( 0, len( tempReg ) ):
+            if tempReg[x] == G3Device.INVALID_TEMP:
+                tempReg[x] = G3Device.INVALID_TEMP_DEFAULT_CHAR
+                rawTempReg[x] = G3Device.INVALID_TEMP_DEFAULT_CHAR
+  
+    
+    def convertToSignedIntRegister(self, aregister ):
+        "Simple conversion from unsigned to signed int when valid"
+        reg = []
+        for x in aregister:
+            value = G3Device.INVALID_TEMP_DEFAULT_CHAR
+            if x != G3Device.INVALID_TEMP_DEFAULT_CHAR:
+                unpack = struct.unpack( 'h', struct.pack('H', x ) )
+                value = unpack[0]
+            reg.append( value )
+        return reg
+
+    
+    def divideRawTempRegisterBy100( self, rawTempReg ):
+        "Gets the raw temperature the way it should be displayed"
+        for x in range( 0, len( rawTempReg ) ):
+            if rawTempReg[x] != G3Device.INVALID_TEMP_DEFAULT_CHAR:
+                rawTempReg[x] /= G3Device.RAW_TEMP_DIVIDE_BY
+
+    def concatenateLowAndHigh(self, low, high, register):
+        "Concatenate high and low word from input register to get serial number"
+        highToInt = int(register[high])
+        lowToInt = int(register[low])
+        hex_high = hex(highToInt)
+        hex_low = hex(lowToInt)
+        sn = int( hex_high + hex_low[2:], 0 )
+        return sn
+
+
 
     def printDictionary(self):
         print("List of available commands: ")
-        for key in Thermotron.COMMAND_LIST:
+        for key in G3Device.COMMAND_LIST:
             print(key)
 
 
