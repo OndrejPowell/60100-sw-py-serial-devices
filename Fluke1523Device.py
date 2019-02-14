@@ -11,17 +11,18 @@
 from time import sleep
 from serial import Serial, SerialException, SerialTimeoutException
 
-
 class Fluke1523:
 
     """ this class is representing a Fluke1523 device """
-
+    
     # constants for Fluke1523 device
-    BAUDRATE = 19200                # DEFAULT BAUDRATE
+    BAUDRATE = 9600                 # DEFAULT BAUDRATE
     TIMEOUT = 0.5                   # time out in seconds
+    WAKE_UP_TIME = 2                # wake up time in seconds for Fluke to come up online
     
     COMMAND_LIST = {
-        "readTemperature" : b'FETC?\r\n'
+        "readTemperature" : b'FETC?\r\n',
+        "readId" : b'*IDN?\r\n'   
     }
 
 
@@ -35,6 +36,7 @@ class Fluke1523:
         """this opens up com port with device"""
         try:
             self.connection = Serial(port=self.comPort, baudrate=Fluke1523.BAUDRATE, timeout=Fluke1523.TIMEOUT )    #open com port
+            sleep(Fluke1523.WAKE_UP_TIME)
         except SerialException:
             print("Com port cannot open")
         
