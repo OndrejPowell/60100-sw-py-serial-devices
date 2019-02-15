@@ -110,6 +110,7 @@ class G3Device:
 
 
     def formatChannelValuesDisplay(self, temp, rawTemp, pwr ):
+        """This function gets the 3 registers and converts them in a way that data is meaningfull to the user. See test class for usage"""
         rawTemperaturesDividedBy100AndSigned = []
         rawTemperaturesSigned = self.convertToSignedIntRegister(rawTemp)
         for x in range(0, self.channels):
@@ -123,6 +124,7 @@ class G3Device:
         return myChannelsFormatted
 
     def formatSerialNumbers(self, generalParam, britespotSn):
+        """This function gets the 2 registers with Serial Numbers and concatenates low and high words to make up the serial number needed. See test class for usage"""
         generalParametersWithConcatenatedSn = []
         serialNumbersForBs = []
         high = 12 if self.channels == 18 else 6
