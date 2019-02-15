@@ -15,15 +15,22 @@ from G3Device import G3Device
 
 myG3Device = G3Device('COM6', 1, 9)
 myG3Device.openConnection()
-print ( "Temperatures: ", myG3Device.readData("readTempRegister"))
-generalParameters = myG3Device.readData("readGeneralParametersRegister")
-print (  "FW REV For Britespots: ", myG3Device.readData("readBritespotFwRegister"))
-print ( "HW REV For Britespots: ", myG3Device.readData("readBritespotHwRegister"))
-britespotSn = myG3Device.readData("readBritespotSnRegister")
-serialNumbersForBs = []
-generalParametersWithConcatenatedSn = []
-for x in range(0, 6,2):
-    serialNumbersForBs.append( myG3Device.concatenateLowAndHigh(x,x+1, britespotSn ) )
-print("Britespots Serial Numbers: ", serialNumbersForBs)
-generalParametersWithConcatenatedSn.extend( [ myG3Device.concatenateLowAndHigh(0,1, generalParameters ),  generalParameters[2], generalParameters[3] ] )
-print("Unit SN, HW-REV, FW-REV: ", serialNumbersForBs)
+formattedChannels = myG3Device.formatChannelValuesDisplay(myG3Device.readData("readTempRegister"), myG3Device.readData("readRawTempRegister"),  myG3Device.readData("readTempRegister"))
+formatTemps = formattedChannels[0] 
+formatRawTemps = formattedChannels[1] 
+formatPowers = formattedChannels[2] 
+print( "Temperatures: ", formatTemps)
+print( "Raw Temperatures : ", formatRawTemps)
+print( "Powers: ", formatPowers)
+print( "Integral A: ", myG3Device.readData("readIntgARegister"))
+print( "Integral B: ", myG3Device.readData("readIntgBRegister"))
+print( "Integral AB: ", myG3Device.readData("readIntgABRegister"))
+print( "Calibration Offsets: ", myG3Device.readData("readCalibrationOffsetRegister"))
+print(  "FW REV For Britespots: ", myG3Device.readData("readBritespotFwRegister"))
+print( "HW REV For Britespots: ", myG3Device.readData("readBritespotHwRegister"))
+formattedSn = myG3Device.formatSerialNumbers( myG3Device.readData("readGeneralParametersRegister"), myG3Device.readData("readBritespotSnRegister") )
+formattedGeneralParams = formattedSn[0]
+formattedBritespotSn = formattedSn[1]
+print("Unit SN, HW-REV, FW-REV: ", formattedGeneralParams)
+print("Britespots Serial Numbers: ", formattedBritespotSn)
+myG3Device.closeConnection()

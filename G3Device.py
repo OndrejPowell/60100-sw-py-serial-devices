@@ -76,30 +76,28 @@ class G3Device:
         return response.registers
 
     
-    def dashUnvalidTemperatures( self, tempReg, rawTempReg):
+    def dashChannelsWithNoProbes( self, tempReg, rawTempReg, powerReg):
         for x in range( 0, len( tempReg ) ):
             if tempReg[x] == G3Device.INVALID_TEMP:
                 tempReg[x] = G3Device.INVALID_TEMP_DEFAULT_CHAR
                 rawTempReg[x] = G3Device.INVALID_TEMP_DEFAULT_CHAR
+                powerReg[x] = G3Device.INVALID_TEMP_DEFAULT_CHAR
   
     
     def convertToSignedIntRegister(self, aregister ):
         "Simple conversion from unsigned to signed int when valid"
         reg = []
-        for x in aregister:
-            value = G3Device.INVALID_TEMP_DEFAULT_CHAR
-            if x != G3Device.INVALID_TEMP_DEFAULT_CHAR:
-                unpack = struct.unpack( 'h', struct.pack('H', x ) )
-                value = unpack[0]
+        for x in aregister: 
+            unpack = struct.unpack( 'h', struct.pack('H', x ) )
+            value = unpack[0]
             reg.append( value )
         return reg
 
     
-    def divideRawTempRegisterBy100( self, rawTempReg ):
+    def divideRawTemp100( self, rawTemp ):
         "Gets the raw temperature the way it should be displayed"
-        for x in range( 0, len( rawTempReg ) ):
-            if rawTempReg[x] != G3Device.INVALID_TEMP_DEFAULT_CHAR:
-                rawTempReg[x] /= G3Device.RAW_TEMP_DIVIDE_BY
+        if rawTemp != G3Device.INVALID_TEMP_DEFAULT_CHAR:
+            return rawTemp / G3Device.RAW_TEMP_DIVIDE_BY
 
     def concatenateLowAndHigh(self, low, high, register):
         "Concatenate high and low word from input register to get serial number"
@@ -111,6 +109,30 @@ class G3Device:
         return sn
 
 
+    def formatChannelValuesDisplay(self, temp, rawTemp, pwr ):
+        rawTemperaturesDividedBy100AndSigned = []
+        rawTemperaturesSigned = self.convertToSignedIntRegister(rawTemp)
+        for x in range(0, self.channels):
+            rawTemperaturesDividedBy100AndSigned.append( self.divideRawTemp100( rawTemperaturesSigned[x] ) )
+        temperaturesSigned = self.convertToSignedIntRegister(temp)
+        self.dashChannelsWithNoProbes(temperaturesSigned, rawTemperaturesDividedBy100AndSigned, pwr)
+        myChannelsFormatted = []
+        myChannelsFormatted.append(temperaturesSigned)
+        myChannelsFormatted.append(rawTemperaturesDividedBy100AndSigned)
+        myChannelsFormatted.append(pwr)
+        return myChannelsFormatted
+
+    def formatSerialNumbers(self, generalParam, britespotSn):
+        generalParametersWithConcatenatedSn = []
+        serialNumbersForBs = []
+        high = 12 if self.channels == 18 else 6
+        for x in range(0, high, 2):
+            serialNumbersForBs.append( self.concatenateLowAndHigh(x,x+1, britespotSn ) )
+        generalParametersWithConcatenatedSn.extend( [ self.concatenateLowAndHigh(0,1, generalParam ),  generalParam[2], generalParam[3] ] )
+        mySnFormatted = []
+        mySnFormatted.append(generalParametersWithConcatenatedSn)
+        mySnFormatted.append(serialNumbersForBs)
+        return mySnFormatted
 
     def printDictionary(self):
         print("List of available commands: ")
