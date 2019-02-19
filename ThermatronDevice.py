@@ -21,8 +21,11 @@ class Thermotron:
     TIMEOUT = 0.5                   # time out in seconds
     
     COMMAND_LIST = {
-        "readSetPoint1": b'setp1?\r\n',
-        "readSetPoint2": b'setp2?\r\n'
+        "readSetPoint": b'setp1?\r\n',
+        "setPointTemperature" : 'setp{0},{1}\r\n',
+        "sendRunCommand" : b'RUNM\r\n',
+        "sendStopCommand" : b'STOP\r\n'
+
     }
 
 
@@ -49,13 +52,13 @@ class Thermotron:
 
     def readData(self, command, size=50):
         """reads data from Thermatron"""
-        self.writeData( command )
+        self.sendCommand( command )
         data_read = self.connection.read(size)
         return data_read.decode('utf-8')        # returns decoded data
         
 
 
-    def writeData(self, command):
+    def sendCommand(self, command):
         """ writes command to Thermatron"""
         if command not in Thermotron.COMMAND_LIST:
             print("WRONG COMMAND PLEASE REFER TO COMMAND LIST: ")
@@ -63,6 +66,15 @@ class Thermotron:
             return
         try:
             self.connection.write( Thermotron.COMMAND_LIST[command] )
+        except SerialTimeoutException:
+            print("COULD NOT READ THE DATA")
+        except SerialException:
+            print("DEVICE DISCONNECTED")
+
+    def setTemperature(self, setpointNumber, value):
+        command = ( Thermotron.COMMAND_LIST["setPointTemperature"].format(setpointNumber, value)).encode('utf-8')
+        try:
+            self.connection.write( command )
         except SerialTimeoutException:
             print("COULD NOT READ THE DATA")
         except SerialException:
