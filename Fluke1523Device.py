@@ -16,19 +16,9 @@ class Fluke1523:
     """ this class is representing a Fluke1523 device """
     
     # constants for Fluke1523 device
-<<<<<<< HEAD
-    BAUDRATE = 9600                # DEFAULT BAUDRATE
-    TIMEOUT = 0.5                  # time out in seconds
-=======
-    BAUDRATE = 9600                 # DEFAULT BAUDRATE
-    TIMEOUT = 0.5                   # time out in seconds
-    WAKE_UP_TIME = 2                # wake up time in seconds for Fluke to come up online
->>>>>>> feature/change_fluke_class
-    
     COMMAND_LIST = {
         "readTemperature" : b'FETC?\r\n',
         "readId" : b'*IDN?\r\n'   
-    }
 
 
 
