@@ -21,10 +21,7 @@
 # import modules
 from G3Device import G3Device
 from ThermatronDevice import Thermotron
-
-
-
-
+from Fluke1523Device import Fluke1523
 from time import sleep
 
 
