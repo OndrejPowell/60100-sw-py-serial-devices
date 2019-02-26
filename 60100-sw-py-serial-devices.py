@@ -23,7 +23,7 @@
 from ConfigFileGenerator import Settings
 from ThermatronDevice import Thermatron
 from Fluke1523Device import Fluke1523
-from G3Device import G3Device
+from ModbusChain import ModbusChain as Mc
 from time import sleep
 import csv
 
@@ -55,21 +55,22 @@ def main():
     fluke1523.openConnection()
 
 # create instance of multiple G3 units
+    
     nrOfG3s = int( settings.read("G3","numberofunits") )
     g3ChannelsToList = settings.read("G3","numberofchannels").split(',')
-    g3ComPort = settings.read("G3","comports")
+    g3SlaveIdToList = settings.read("G3","slaveidlist").split(',')
+    g3ComPort = settings.read("G3","comport")
     g3SectionsToLogToList = settings.read("G3","sectionstolog").split(',')
-    listOfG3Devices = []
+    mc1 = Mc(g3ComPort, nrOfG3s)
+    mc1.openConnection()
+
 
     #instanciating and opening connection from all devices 
     for i in range(0, nrOfG3s):
-        
-        listOfG3Devices.append( G3Device( g3ComPort, i+1, int( g3ChannelsToList[i] ) ) )
-        listOfG3Devices[i].openConnection()
-        print( g3ComPort, i+1)
-        deviceInfoId = listOfG3Devices[i].getFormattedDeviceInfo()
-        print("Device:", i+1, g3ComPort ,"General Parameters: ", deviceInfoId[0], "Britespot SerialNumbers", deviceInfoId[1])
-        # listOfG3Devices[i].closeConnection()
+        mc1.addG3DeviceToChain( int( g3ChannelsToList[i] ) , int ( g3SlaveIdToList[i] ) )
+        print(mc1.deviceList)
+        deviceInfoId = mc1.getG3FormattedDeviceInfo ( mc1.deviceList[i] )
+        print("Device:", g3SlaveIdToList[i], g3ComPort ,"General Parameters: ", deviceInfoId[0], "Britespot SerialNumbers", deviceInfoId[1])
 
     #reading from all devices
 
@@ -99,17 +100,15 @@ def main():
 
                 # LOOP 4 - collects the data from the connected devices           
                 
-                for device in listOfG3Devices:   
+                for deviceTuple in mc1.deviceList:   
                     for i in range(0, len(g3SectionsToLogToList)):
                         if g3SectionsToLogToList[i] == "readTempRegister":
-                            sectionLogged = device.convertToSignedIntRegister( device.readData(g3SectionsToLogToList[i]) )
+                            sectionLogged = mc1.convertToSignedIntRegister( mc1.readData(deviceTuple, g3SectionsToLogToList[i]) )
                         elif g3SectionsToLogToList[i] == "readRawTempRegister":
-                            sectionLogged = device.convertRawTempRegister( device.readData(g3SectionsToLogToList[i]) )
+                            sectionLogged = mc1.convertRawTempRegister( mc1.readData(deviceTuple, g3SectionsToLogToList[i]) )
                         else:
-                            sectionLogged = device.readData(g3SectionsToLogToList[i])
+                            sectionLogged = mc1.readData(deviceTuple, g3SectionsToLogToList[i])
                         dataSample.append(sectionLogged)    
-                        
-                        # print ("Sample #:", sampleNr+1, "Device:", deviceCounter+1, g3ComPortsToList[deviceCounter] , "Section: " + g3SectionsToLogToList[i] + ":", sectionLogged)
                     deviceCounter += 1
                 aline = formatList( dataSample, 0, len(dataSample) )
                 formatDataSampleList = aline[:len(aline)-1].split(',') # FROM aline start to end (which is length of string - 1)
@@ -122,8 +121,8 @@ def main():
                 sleep( float( settings.read("Main-Log-Settings", "polltime") ) )
 
     #closing connection from all devices
-    for i in range(0, nrOfG3s):    
-        listOfG3Devices[i].closeConnection()
+    mc1.closeConnection()
+    mc1.cleanDeviceList()
     fluke1523.closeConnection()
     thermatron.sendCommand("sendStopCommand")
     sleep(COMMAND_WAIT_TIME)

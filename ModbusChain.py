@@ -12,6 +12,8 @@ import struct
 from pymodbus.pdu import ModbusRequest
 from pymodbus.client.sync import ModbusSerialClient as ModbusClient
 from pymodbus.transaction import ModbusRtuFramer
+from pymodbus.transaction import ModbusIOException
+
 
 
 class ModbusChain:
@@ -66,20 +68,22 @@ class ModbusChain:
 
     def readData(self, deviceTuple, command ):
         "Reads register from starting address (parameter), num of reg to read and slave id "
-        nrOfChannels = deviceTuple[0]
-        slaveId = deviceTuple[1]
-        if command not in ModbusChain.G3_COMMAND_LIST:
-            print("WRONG COMMAND PLEASE REFER TO COMMAND LIST: ")
-            self.printDictionary()
-            return None
-        if isinstance( ModbusChain.G3_COMMAND_LIST[command], int):
-            response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command], nrOfChannels, unit = slaveId)
-        elif len( ModbusChain.G3_COMMAND_LIST[command] ) == 2:
-            response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command][0], ModbusChain.G3_COMMAND_LIST[command][1], unit = slaveId)
-        else:
-            response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command][0], count = ModbusChain.G3_COMMAND_LIST[command][1] if nrOfChannels == 18 else ModbusChain.G3_COMMAND_LIST[command][2], unit = slaveId)
-        return response.registers
-  
+        try:
+            nrOfChannels = deviceTuple[0]
+            slaveId = deviceTuple[1]
+            if command not in ModbusChain.G3_COMMAND_LIST:
+                print("WRONG COMMAND PLEASE REFER TO COMMAND LIST: ")
+                self.printDictionary()
+                return None
+            if isinstance( ModbusChain.G3_COMMAND_LIST[command], int):
+                response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command], nrOfChannels, unit = slaveId)
+            elif len( ModbusChain.G3_COMMAND_LIST[command] ) == 2:
+                response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command][0], ModbusChain.G3_COMMAND_LIST[command][1], unit = slaveId)
+            else:
+                response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command][0], count = ModbusChain.G3_COMMAND_LIST[command][1] if nrOfChannels == 18 else ModbusChain.G3_COMMAND_LIST[command][2], unit = slaveId)
+            return response.registers
+        except ModbusIOException:
+            return 'NO-DATA'
     
     def convertToSignedIntRegister(self, aregister ):
         "Simple conversion from unsigned to signed int when valid"
