@@ -16,12 +16,12 @@ class Settings:
         self.config.add_section('G3')
         self.config.set('G3', 'numberOfChannels', '')
         self.config.set('G3', 'numberOfUnits', '')
-        self.config.set('G3', 'comPorts', '')
+        self.config.set('G3', 'comPort', '')
         self.config.set('G3', 'sectionsToLog', 'readTempRegister,readPwrRegister')
         
         self.config.add_section('EEM')
         self.config.set('EEM', 'numberOfUnits' , '') 
-        self.config.set('EEM', 'comPorts' , '')
+        self.config.set('EEM', 'comPort' , '')
         self.config.set('EEM', 'sectionsToLog' , '') 
         
         

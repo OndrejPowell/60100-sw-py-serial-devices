@@ -14,16 +14,16 @@ from pymodbus.client.sync import ModbusSerialClient as ModbusClient
 from pymodbus.transaction import ModbusRtuFramer
 
 
-class G3Device:
+class ModbusChain:
 
-    """ this class is representing a G3Device device """
+    """ this class is representing a ModbusChain """
 
-    # constants for G3Device device
+    # constants for ModbusChain 
     INVALID_TEMP = -999
     INVALID_TEMP_DEFAULT_CHAR = '-'
     RAW_TEMP_DIVIDE_BY = 100
     
-    COMMAND_LIST = {
+    G3_COMMAND_LIST = {
         # Populated with starting address of each section, and for the last four additional information for how many register it would read(18 ch and 9 ch respectively)
         "readTempRegister": 97,
         "readPwrRegister": 151,
@@ -40,11 +40,14 @@ class G3Device:
 
 
 
-    def __init__(self, com, slaveid, channels):         # start with the constru contructor is used for initializing variables ONLY ONE CONSTRUCTOR PER CLASS !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        self.client = ModbusClient(method = "rtu", port = com)
+    def __init__(self, com, numOfDevices):       # start with the constru contructor is used for initializing variables ONLY ONE CONSTRUCTOR PER CLASS !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.comPort = com
+        self.client = ModbusClient(method = "rtu", port = self.comPort)
         self.connection = None
-        self.slaveId = slaveid
-        self.channels = channels
+        self.deviceList = []  #it's gonna contain a list of tuples nrOfChannels, slaveID
+
+    def addG3DeviceToChain( self, nrOfChannels, slaveId ) :
+        self.deviceList.append( ( nrOfChannels, slaveId )  )
 
     def openConnection(self):      # every method OF CLASS MUST HAVE self AS FIRST PARAMETER !!!!!!!!!!!!!!!!!
         """this opens up com port with device"""
@@ -61,18 +64,20 @@ class G3Device:
 
     
 
-    def readData(self, command ):
+    def readData(self, deviceTuple, command ):
         "Reads register from starting address (parameter), num of reg to read and slave id "
-        if command not in G3Device.COMMAND_LIST:
+        nrOfChannels = deviceTuple[0]
+        slaveId = deviceTuple[1]
+        if command not in ModbusChain.G3_COMMAND_LIST:
             print("WRONG COMMAND PLEASE REFER TO COMMAND LIST: ")
             self.printDictionary()
             return None
-        if isinstance( G3Device.COMMAND_LIST[command], int):
-            response = self.client.read_input_registers( G3Device.COMMAND_LIST[command], self.channels, unit = self.slaveId)
-        elif len( G3Device.COMMAND_LIST[command] ) == 2:
-            response = self.client.read_input_registers( G3Device.COMMAND_LIST[command][0], G3Device.COMMAND_LIST[command][1], unit = self.slaveId)
+        if isinstance( ModbusChain.G3_COMMAND_LIST[command], int):
+            response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command], nrOfChannels, unit = slaveId)
+        elif len( ModbusChain.G3_COMMAND_LIST[command] ) == 2:
+            response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command][0], ModbusChain.G3_COMMAND_LIST[command][1], unit = slaveId)
         else:
-            response = self.client.read_input_registers( G3Device.COMMAND_LIST[command][0], count = G3Device.COMMAND_LIST[command][1] if self.channels == 18 else G3Device.COMMAND_LIST[command][2], unit = self.slaveId)
+            response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command][0], count = ModbusChain.G3_COMMAND_LIST[command][1] if nrOfChannels == 18 else ModbusChain.G3_COMMAND_LIST[command][2], unit = slaveId)
         return response.registers
   
     
@@ -88,8 +93,8 @@ class G3Device:
     
     def divideRawTemp100( self, rawTemp ):
         "Gets the raw temperature the way it should be displayed"
-        if rawTemp != G3Device.INVALID_TEMP_DEFAULT_CHAR:
-            return rawTemp / G3Device.RAW_TEMP_DIVIDE_BY
+        if rawTemp != ModbusChain.INVALID_TEMP_DEFAULT_CHAR:
+            return rawTemp / ModbusChain.RAW_TEMP_DIVIDE_BY
 
     def concatenateLowAndHigh(self, low, high, register):
         "Concatenate high and low word from input register to get serial number"
@@ -102,20 +107,20 @@ class G3Device:
 
 
     def convertRawTempRegister(self, rawTemp ):
-        """This function gets the 3 registers and converts them in a way that data is meaningfull to the user. See test class for usage"""
+        """This function gets raw temp register and converts it in a way that data is meaningful to the user. See test class for usage"""
         rawTemperaturesDividedBy100AndSigned = []
         rawTemperaturesSigned = self.convertToSignedIntRegister(rawTemp)
-        for x in range(0, self.channels):
+        for x in range(0, len(rawTemp) ):
             rawTemperaturesDividedBy100AndSigned.append( self.divideRawTemp100( rawTemperaturesSigned[x] ) )
         return rawTemperaturesDividedBy100AndSigned
 
-    def getFormattedDeviceInfo(self):
+    def getG3FormattedDeviceInfo(self, deviceTuple):
         """This function gets the 2 registers with Serial Numbers and concatenates low and high words to make up the serial number needed. See test class for usage"""
-        generalParam = self.readData("readGeneralParametersRegister")
-        britespotSn = self.readData("readBritespotSnRegister")
+        generalParam = self.readData(deviceTuple, "readGeneralParametersRegister")
+        britespotSn = self.readData(deviceTuple, "readBritespotSnRegister")
         generalParametersWithConcatenatedSn = []
         serialNumbersForBs = []
-        high = 12 if self.channels == 18 else 6
+        high = 12 if deviceTuple[0] == 18 else 6
         for x in range(0, high, 2):
             serialNumbersForBs.append( self.concatenateLowAndHigh(x,x+1, britespotSn ) )
         generalParametersWithConcatenatedSn.extend( [ self.concatenateLowAndHigh(0,1, generalParam ),  generalParam[2], generalParam[3] ] )
@@ -124,9 +129,12 @@ class G3Device:
         mySnFormatted.append(serialNumbersForBs)
         return mySnFormatted
 
+    def cleanDeviceList(self):
+        del self.deviceList[:]
+
     def printDictionary(self):
         print("List of available commands: ")
-        for key in G3Device.COMMAND_LIST:
+        for key in ModbusChain.G3_COMMAND_LIST:
             print(key)
 
 
