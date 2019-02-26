@@ -12,7 +12,7 @@ from time import sleep
 from serial import Serial, SerialException, SerialTimeoutException
 
 
-class Thermotron:
+class Thermatron:
 
     """ this class is representing a Thermotron device """
 
@@ -38,7 +38,7 @@ class Thermotron:
     def openConnection(self):      # every method OF CLASS MUST HAVE self AS FIRST PARAMETER !!!!!!!!!!!!!!!!!
         """this opens up com port with device"""
         try:
-            self.connection = Serial(port=self.comPort, baudrate=Thermotron.BAUDRATE, timeout=Thermotron.TIMEOUT )    #open com port
+            self.connection = Serial(port=self.comPort, baudrate=Thermatron.BAUDRATE, timeout=Thermatron.TIMEOUT )    #open com port
         except SerialException:
             print("Com port cannot open")
         
@@ -50,7 +50,7 @@ class Thermotron:
                 self.connection.close()
 
 
-    def readData(self, command, size=50):
+    def readData(self, command, size=100):
         """reads data from Thermatron"""
         self.sendCommand( command )
         data_read = self.connection.read(size)
@@ -60,19 +60,19 @@ class Thermotron:
 
     def sendCommand(self, command):
         """ writes command to Thermatron"""
-        if command not in Thermotron.COMMAND_LIST:
+        if command not in Thermatron.COMMAND_LIST:
             print("WRONG COMMAND PLEASE REFER TO COMMAND LIST: ")
             self.printDictionary()
             return
         try:
-            self.connection.write( Thermotron.COMMAND_LIST[command] )
+            self.connection.write( Thermatron.COMMAND_LIST[command] )
         except SerialTimeoutException:
             print("COULD NOT READ THE DATA")
         except SerialException:
             print("DEVICE DISCONNECTED")
 
-    def setTemperature(self, setpointNumber, value):
-        command = ( Thermotron.COMMAND_LIST["setPointTemperature"].format(setpointNumber, value)).encode('utf-8')
+    def setTemperature(self, value, setpointNumber=1):
+        command = ( Thermatron.COMMAND_LIST["setPointTemperature"].format(setpointNumber, value)).encode('utf-8')
         try:
             self.connection.write( command )
         except SerialTimeoutException:
@@ -82,7 +82,7 @@ class Thermotron:
 
     def printDictionary(self):
         print("List of available commands: ")
-        for key in Thermotron.COMMAND_LIST:
+        for key in Thermatron.COMMAND_LIST:
             print(key)
 
 

@@ -74,14 +74,6 @@ class G3Device:
         else:
             response = self.client.read_input_registers( G3Device.COMMAND_LIST[command][0], count = G3Device.COMMAND_LIST[command][1] if self.channels == 18 else G3Device.COMMAND_LIST[command][2], unit = self.slaveId)
         return response.registers
-
-    
-    def dashChannelsWithNoProbes( self, tempReg, rawTempReg, powerReg):
-        for x in range( 0, len( tempReg ) ):
-            if tempReg[x] == G3Device.INVALID_TEMP:
-                tempReg[x] = G3Device.INVALID_TEMP_DEFAULT_CHAR
-                rawTempReg[x] = G3Device.INVALID_TEMP_DEFAULT_CHAR
-                powerReg[x] = G3Device.INVALID_TEMP_DEFAULT_CHAR
   
     
     def convertToSignedIntRegister(self, aregister ):
@@ -109,22 +101,18 @@ class G3Device:
         return sn
 
 
-    def formatChannelValuesDisplay(self, temp, rawTemp, pwr ):
+    def convertRawTempRegister(self, rawTemp ):
         """This function gets the 3 registers and converts them in a way that data is meaningfull to the user. See test class for usage"""
         rawTemperaturesDividedBy100AndSigned = []
         rawTemperaturesSigned = self.convertToSignedIntRegister(rawTemp)
         for x in range(0, self.channels):
             rawTemperaturesDividedBy100AndSigned.append( self.divideRawTemp100( rawTemperaturesSigned[x] ) )
-        temperaturesSigned = self.convertToSignedIntRegister(temp)
-        self.dashChannelsWithNoProbes(temperaturesSigned, rawTemperaturesDividedBy100AndSigned, pwr)
-        myChannelsFormatted = []
-        myChannelsFormatted.append(temperaturesSigned)
-        myChannelsFormatted.append(rawTemperaturesDividedBy100AndSigned)
-        myChannelsFormatted.append(pwr)
-        return myChannelsFormatted
+        return rawTemperaturesDividedBy100AndSigned
 
-    def formatSerialNumbers(self, generalParam, britespotSn):
+    def getFormattedDeviceInfo(self):
         """This function gets the 2 registers with Serial Numbers and concatenates low and high words to make up the serial number needed. See test class for usage"""
+        generalParam = self.readData("readGeneralParametersRegister")
+        britespotSn = self.readData("readBritespotSnRegister")
         generalParametersWithConcatenatedSn = []
         serialNumbersForBs = []
         high = 12 if self.channels == 18 else 6

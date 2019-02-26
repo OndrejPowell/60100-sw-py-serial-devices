@@ -1,12 +1,12 @@
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))) 
-from ThermatronDevice import Thermotron
+from ThermatronDevice import Thermatron
 from time import sleep
 # test code below
 
 print('Thermotron driver tester')
 
-myThermatronDevice1 = Thermotron("COM5")        # this is an object
+myThermatronDevice1 = Thermatron("COM5")        # this is an object
 myThermatronDevice1.openConnection()            # connection is ope
 
 sleep(1)
