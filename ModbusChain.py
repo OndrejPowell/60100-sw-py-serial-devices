@@ -15,7 +15,6 @@ from pymodbus.transaction import ModbusRtuFramer
 from pymodbus.transaction import ModbusIOException
 
 
-
 class ModbusChain:
 
     """ this class is representing a ModbusChain """
@@ -47,6 +46,7 @@ class ModbusChain:
         self.client = ModbusClient(method = "rtu", port = self.comPort)
         self.connection = None
         self.deviceList = []  #it's gonna contain a list of tuples nrOfChannels, slaveID
+        self.errorCounter = 0
 
     def addG3DeviceToChain( self, nrOfChannels, slaveId ) :
         self.deviceList.append( ( nrOfChannels, slaveId )  )
@@ -73,18 +73,20 @@ class ModbusChain:
             slaveId = deviceTuple[1]
             if command not in ModbusChain.G3_COMMAND_LIST:
                 print("WRONG COMMAND PLEASE REFER TO COMMAND LIST: ")
-                self.printDictionary()
-                return None
+                self.printG3Dictionary()
+                exit(1)
             if isinstance( ModbusChain.G3_COMMAND_LIST[command], int):
                 response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command], nrOfChannels, unit = slaveId)
             elif len( ModbusChain.G3_COMMAND_LIST[command] ) == 2:
                 response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command][0], ModbusChain.G3_COMMAND_LIST[command][1], unit = slaveId)
             else:
                 response = self.client.read_input_registers( ModbusChain.G3_COMMAND_LIST[command][0], count = ModbusChain.G3_COMMAND_LIST[command][1] if nrOfChannels == 18 else ModbusChain.G3_COMMAND_LIST[command][2], unit = slaveId)
-            return response.registers
-        except ModbusIOException:
-            return 'NO-DATA'
-    
+            response = response.registers
+        except AttributeError:
+            self.errorCounter += 1
+            response = [ 0 ] * deviceTuple[0]
+        return response
+
     def convertToSignedIntRegister(self, aregister ):
         "Simple conversion from unsigned to signed int when valid"
         reg = []
@@ -122,6 +124,8 @@ class ModbusChain:
         """This function gets the 2 registers with Serial Numbers and concatenates low and high words to make up the serial number needed. See test class for usage"""
         generalParam = self.readData(deviceTuple, "readGeneralParametersRegister")
         britespotSn = self.readData(deviceTuple, "readBritespotSnRegister")
+        print( deviceTuple )
+        print(britespotSn)
         generalParametersWithConcatenatedSn = []
         serialNumbersForBs = []
         high = 12 if deviceTuple[0] == 18 else 6
@@ -136,7 +140,7 @@ class ModbusChain:
     def cleanDeviceList(self):
         del self.deviceList[:]
 
-    def printDictionary(self):
+    def printG3Dictionary(self):
         print("List of available commands: ")
         for key in ModbusChain.G3_COMMAND_LIST:
             print(key)
